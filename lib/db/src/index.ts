@@ -4,9 +4,13 @@ import * as schema from "./schema";
 
 const { Pool } = pg;
 
-const connectionString =
-  process.env.DATABASE_URL ??
-  "postgresql://postgres:password@helium/heliumdb?sslmode=require";
+const connectionString = process.env.DATABASE_URL;
+
+if (!connectionString) {
+  throw new Error(
+    "DATABASE_URL must be set. Get it from Supabase dashboard → Settings → Database → Connection string (URI format).",
+  );
+}
 
 export const pool = new Pool({ connectionString });
 export const db = drizzle(pool, { schema });
