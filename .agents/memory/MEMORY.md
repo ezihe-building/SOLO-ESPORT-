@@ -1,0 +1,3 @@
+- [SOLOS+ Stack & Auth](solos-stack.md) — Supabase auth, mgmt password "terrorist", owner panel at /owner
+- [Upload Pattern](upload-pattern.md) — base64 → /api/upload (x-mgmt-password or Bearer), SUPABASE_URL + SERVICE_ROLE_KEY on server
+- [DB Schema Extras](db-schema-extras.md) — announcements/scrims/events got image+link columns; members has avatarUrl

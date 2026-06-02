@@ -1,0 +1,1050 @@
+openapi: 3.1.0
+info:
+  title: Api
+  version: 0.1.0
+  description: SOLOS+ ESPORTZ clan management platform API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: auth
+    description: Authentication operations
+  - name: members
+    description: Member management
+  - name: announcements
+    description: Clan announcements
+  - name: scrims
+    description: Scrim management
+  - name: leaderboard
+    description: Leaderboard and rankings
+  - name: chat
+    description: Group chat
+  - name: notifications
+    description: Notifications
+  - name: stats
+    description: Clan statistics
+
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  # ── AUTH ──────────────────────────────────────────────────────────────────
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current authenticated user profile
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Member"
+        "401":
+          description: Unauthorized
+
+  # ── MEMBERS ───────────────────────────────────────────────────────────────
+  /members:
+    get:
+      operationId: listMembers
+      tags: [members]
+      summary: List all clan members
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, active, rejected, kicked]
+        - name: role
+          in: query
+          schema:
+            type: string
+            enum: [OWNER, MANAGEMENT, TIER1, TIER2, TIER3, NEW_MEMBER]
+      responses:
+        "200":
+          description: List of members
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Member"
+
+  /members/{id}:
+    get:
+      operationId: getMember
+      tags: [members]
+      summary: Get member by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Member
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Member"
+        "404":
+          description: Not found
+
+    patch:
+      operationId: updateMember
+      tags: [members]
+      summary: Update member profile or stats (management only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MemberUpdate"
+      responses:
+        "200":
+          description: Updated member
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Member"
+
+    delete:
+      operationId: deleteMember
+      tags: [members]
+      summary: Delete/kick member (management only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+
+  /members/{id}/approve:
+    post:
+      operationId: approveMember
+      tags: [members]
+      summary: Approve pending member application
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Approved member
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Member"
+
+  /members/{id}/reject:
+    post:
+      operationId: rejectMember
+      tags: [members]
+      summary: Reject pending member application
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Rejected member
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Member"
+
+  /members/{id}/promote:
+    post:
+      operationId: promoteMember
+      tags: [members]
+      summary: Promote member to next tier or management role
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoleChange"
+      responses:
+        "200":
+          description: Promoted member
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Member"
+
+  /members/{id}/demote:
+    post:
+      operationId: demoteMember
+      tags: [members]
+      summary: Demote member
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoleChange"
+      responses:
+        "200":
+          description: Demoted member
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Member"
+
+  /members/pending:
+    get:
+      operationId: listPendingMembers
+      tags: [members]
+      summary: List pending approval members
+      responses:
+        "200":
+          description: Pending members
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Member"
+
+  /members/online:
+    get:
+      operationId: listOnlineMembers
+      tags: [members]
+      summary: List currently online members
+      responses:
+        "200":
+          description: Online members
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Member"
+
+  /members/profile:
+    patch:
+      operationId: updateMyProfile
+      tags: [members]
+      summary: Update own profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfileUpdate"
+      responses:
+        "200":
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Member"
+
+  # ── ANNOUNCEMENTS ─────────────────────────────────────────────────────────
+  /announcements:
+    get:
+      operationId: listAnnouncements
+      tags: [announcements]
+      summary: List all announcements
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Announcements
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Announcement"
+
+    post:
+      operationId: createAnnouncement
+      tags: [announcements]
+      summary: Create announcement (management only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnnouncementInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Announcement"
+
+  /announcements/{id}:
+    get:
+      operationId: getAnnouncement
+      tags: [announcements]
+      summary: Get announcement by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Announcement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Announcement"
+
+    delete:
+      operationId: deleteAnnouncement
+      tags: [announcements]
+      summary: Delete announcement (management only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+
+  # ── SCRIMS ────────────────────────────────────────────────────────────────
+  /scrims:
+    get:
+      operationId: listScrims
+      tags: [scrims]
+      summary: List all scrims
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [upcoming, ongoing, completed, cancelled]
+      responses:
+        "200":
+          description: Scrims
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Scrim"
+
+    post:
+      operationId: createScrim
+      tags: [scrims]
+      summary: Create scrim (management only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScrimInput"
+      responses:
+        "201":
+          description: Created scrim
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Scrim"
+
+  /scrims/{id}:
+    get:
+      operationId: getScrim
+      tags: [scrims]
+      summary: Get scrim by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Scrim
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Scrim"
+
+    patch:
+      operationId: updateScrim
+      tags: [scrims]
+      summary: Update scrim (management only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScrimUpdate"
+      responses:
+        "200":
+          description: Updated scrim
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Scrim"
+
+    delete:
+      operationId: deleteScrim
+      tags: [scrims]
+      summary: Delete scrim (management only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+
+  /scrims/{id}/join:
+    post:
+      operationId: joinScrim
+      tags: [scrims]
+      summary: Sign up for a scrim
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Signup result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScrimSignup"
+
+  /scrims/{id}/leave:
+    post:
+      operationId: leaveScrim
+      tags: [scrims]
+      summary: Leave a scrim
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Left scrim
+
+  /scrims/{id}/signups:
+    get:
+      operationId: listScrimSignups
+      tags: [scrims]
+      summary: List scrim signups
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Signups
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ScrimSignup"
+
+  # ── LEADERBOARD ───────────────────────────────────────────────────────────
+  /leaderboard:
+    get:
+      operationId: getLeaderboard
+      tags: [leaderboard]
+      summary: Get clan leaderboard
+      parameters:
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum: [clanPoints, kdRatio, mvpCount, activityScore, scrimWins]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Leaderboard entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LeaderboardEntry"
+
+  /leaderboard/top:
+    get:
+      operationId: getTopPlayers
+      tags: [leaderboard]
+      summary: Get top 5 players across categories
+      responses:
+        "200":
+          description: Top players
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TopPlayers"
+
+  # ── CHAT ──────────────────────────────────────────────────────────────────
+  /chat/groups:
+    get:
+      operationId: listChatGroups
+      tags: [chat]
+      summary: List available chat groups for current user
+      responses:
+        "200":
+          description: Chat groups
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ChatGroup"
+
+  /chat/groups/{groupId}/messages:
+    get:
+      operationId: getChatMessages
+      tags: [chat]
+      summary: Get messages for a chat group
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ChatMessage"
+
+    post:
+      operationId: sendMessage
+      tags: [chat]
+      summary: Send a message to a chat group
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MessageInput"
+      responses:
+        "201":
+          description: Message sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatMessage"
+
+  /chat/groups/{groupId}/messages/{messageId}:
+    delete:
+      operationId: deleteMessage
+      tags: [chat]
+      summary: Delete a message (management or own)
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+
+  # ── NOTIFICATIONS ─────────────────────────────────────────────────────────
+  /notifications:
+    get:
+      operationId: listNotifications
+      tags: [notifications]
+      summary: Get current user notifications
+      parameters:
+        - name: unreadOnly
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Notification"
+
+  /notifications/{id}/read:
+    post:
+      operationId: markNotificationRead
+      tags: [notifications]
+      summary: Mark notification as read
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Updated notification
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Notification"
+
+  /notifications/read-all:
+    post:
+      operationId: markAllNotificationsRead
+      tags: [notifications]
+      summary: Mark all notifications as read
+      responses:
+        "204":
+          description: Done
+
+  # ── STATS ─────────────────────────────────────────────────────────────────
+  /stats/clan:
+    get:
+      operationId: getClanStats
+      tags: [stats]
+      summary: Get overall clan statistics
+      responses:
+        "200":
+          description: Clan stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClanStats"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+
+    Member:
+      type: object
+      required: [id, email, codmUsername, displayName, role, status, clanPoints, kdRatio, mvpCount, activityScore, scrimWins, createdAt]
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        codmUsername:
+          type: string
+        displayName:
+          type: string
+          description: "Clan-tagged username e.g. S²十NESS"
+        whatsappNumber:
+          type: ["string", "null"]
+        customTag:
+          type: ["string", "null"]
+          description: "Custom role tag e.g. Admin, Clan Master, Sniper"
+        role:
+          type: string
+          enum: [OWNER, MANAGEMENT, TIER1, TIER2, TIER3, NEW_MEMBER]
+        status:
+          type: string
+          enum: [pending, active, rejected, kicked]
+        avatarUrl:
+          type: ["string", "null"]
+        bio:
+          type: ["string", "null"]
+        clanPoints:
+          type: integer
+        kdRatio:
+          type: number
+        mvpCount:
+          type: integer
+        activityScore:
+          type: integer
+        scrimWins:
+          type: integer
+        isOnline:
+          type: boolean
+        lastSeen:
+          type: ["string", "null"]
+        achievements:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+
+    MemberUpdate:
+      type: object
+      properties:
+        role:
+          type: string
+          enum: [OWNER, MANAGEMENT, TIER1, TIER2, TIER3, NEW_MEMBER]
+        status:
+          type: string
+          enum: [pending, active, rejected, kicked]
+        clanPoints:
+          type: integer
+        kdRatio:
+          type: number
+        mvpCount:
+          type: integer
+        activityScore:
+          type: integer
+        scrimWins:
+          type: integer
+
+    ProfileUpdate:
+      type: object
+      properties:
+        bio:
+          type: string
+        avatarUrl:
+          type: string
+        whatsappNumber:
+          type: string
+        customTag:
+          type: string
+
+    RoleChange:
+      type: object
+      required: [role]
+      properties:
+        role:
+          type: string
+          enum: [OWNER, MANAGEMENT, TIER1, TIER2, TIER3, NEW_MEMBER]
+
+    Announcement:
+      type: object
+      required: [id, title, content, type, authorId, authorName, createdAt]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        content:
+          type: string
+        type:
+          type: string
+          enum: [general, scrim, tournament, promotion, meeting, urgent]
+        authorId:
+          type: string
+        authorName:
+          type: string
+        pinned:
+          type: boolean
+        createdAt:
+          type: string
+
+    AnnouncementInput:
+      type: object
+      required: [title, content, type]
+      properties:
+        title:
+          type: string
+        content:
+          type: string
+        type:
+          type: string
+          enum: [general, scrim, tournament, promotion, meeting, urgent]
+        pinned:
+          type: boolean
+
+    Scrim:
+      type: object
+      required: [id, opponentName, scheduledAt, gameMode, requiredPlayers, status, createdBy, createdAt]
+      properties:
+        id:
+          type: string
+        opponentName:
+          type: string
+        scheduledAt:
+          type: string
+        gameMode:
+          type: string
+        requiredPlayers:
+          type: integer
+        notes:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [upcoming, ongoing, completed, cancelled]
+        result:
+          type: ["string", "null"]
+          enum: ["win", "loss", "draw", null]
+        createdBy:
+          type: string
+        createdAt:
+          type: string
+        signupCount:
+          type: integer
+
+    ScrimInput:
+      type: object
+      required: [opponentName, scheduledAt, gameMode, requiredPlayers]
+      properties:
+        opponentName:
+          type: string
+        scheduledAt:
+          type: string
+        gameMode:
+          type: string
+        requiredPlayers:
+          type: integer
+        notes:
+          type: string
+
+    ScrimUpdate:
+      type: object
+      properties:
+        opponentName:
+          type: string
+        scheduledAt:
+          type: string
+        gameMode:
+          type: string
+        requiredPlayers:
+          type: integer
+        notes:
+          type: string
+        status:
+          type: string
+          enum: [upcoming, ongoing, completed, cancelled]
+        result:
+          type: string
+          enum: [win, loss, draw]
+
+    ScrimSignup:
+      type: object
+      required: [id, scrimId, memberId, memberName, memberRole, signupStatus, createdAt]
+      properties:
+        id:
+          type: string
+        scrimId:
+          type: string
+        memberId:
+          type: string
+        memberName:
+          type: string
+        memberRole:
+          type: string
+        signupStatus:
+          type: string
+          enum: [pending, accepted, declined]
+        createdAt:
+          type: string
+
+    LeaderboardEntry:
+      type: object
+      required: [rank, memberId, displayName, role, clanPoints, kdRatio, mvpCount, activityScore, scrimWins]
+      properties:
+        rank:
+          type: integer
+        memberId:
+          type: string
+        displayName:
+          type: string
+        role:
+          type: string
+        avatarUrl:
+          type: ["string", "null"]
+        clanPoints:
+          type: integer
+        kdRatio:
+          type: number
+        mvpCount:
+          type: integer
+        activityScore:
+          type: integer
+        scrimWins:
+          type: integer
+
+    TopPlayers:
+      type: object
+      required: [byPoints, byKd, byMvp, byActivity, byScrimWins]
+      properties:
+        byPoints:
+          $ref: "#/components/schemas/LeaderboardEntry"
+        byKd:
+          $ref: "#/components/schemas/LeaderboardEntry"
+        byMvp:
+          $ref: "#/components/schemas/LeaderboardEntry"
+        byActivity:
+          $ref: "#/components/schemas/LeaderboardEntry"
+        byScrimWins:
+          $ref: "#/components/schemas/LeaderboardEntry"
+
+    ChatGroup:
+      type: object
+      required: [id, name, type, memberCount]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+          enum: [TIER1, TIER2, TIER3, NEW_MEMBER, MANAGEMENT, GENERAL]
+        memberCount:
+          type: integer
+        lastMessage:
+          type: ["string", "null"]
+        lastMessageAt:
+          type: ["string", "null"]
+        unreadCount:
+          type: integer
+
+    ChatMessage:
+      type: object
+      required: [id, groupId, authorId, authorName, authorRole, content, createdAt]
+      properties:
+        id:
+          type: string
+        groupId:
+          type: string
+        authorId:
+          type: string
+        authorName:
+          type: string
+        authorRole:
+          type: string
+        avatarUrl:
+          type: ["string", "null"]
+        content:
+          type: string
+        createdAt:
+          type: string
+
+    MessageInput:
+      type: object
+      required: [content]
+      properties:
+        content:
+          type: string
+
+    Notification:
+      type: object
+      required: [id, userId, type, title, message, read, createdAt]
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        type:
+          type: string
+          enum: [approval, promotion, demotion, announcement, scrim, tournament, leaderboard, system]
+        title:
+          type: string
+        message:
+          type: string
+        read:
+          type: boolean
+        link:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    ClanStats:
+      type: object
+      required: [totalMembers, activeMembers, pendingMembers, totalScrims, scrimWins, totalTournaments, avgKd, totalClanPoints, membersOnline]
+      properties:
+        totalMembers:
+          type: integer
+        activeMembers:
+          type: integer
+        pendingMembers:
+          type: integer
+        tier1Count:
+          type: integer
+        tier2Count:
+          type: integer
+        tier3Count:
+          type: integer
+        newMemberCount:
+          type: integer
+        totalScrims:
+          type: integer
+        scrimWins:
+          type: integer
+        scrimWinRate:
+          type: number
+        totalTournaments:
+          type: integer
+        avgKd:
+          type: number
+        totalClanPoints:
+          type: integer
+        totalMvps:
+          type: integer
+        membersOnline:
+          type: integer
