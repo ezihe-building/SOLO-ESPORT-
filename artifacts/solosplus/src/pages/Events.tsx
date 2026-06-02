@@ -88,7 +88,9 @@ function EventCard({ event, isUpcoming }: { event: EventItem; isUpcoming: boolea
   return (
     <div className={`bg-white/[0.03] border rounded-2xl overflow-hidden transition-colors hover:border-white/15 ${isUpcoming ? "border-red-500/20 hover:border-red-500/30" : "border-white/8"}`}>
       {event.imageUrl && (
-        <img src={event.imageUrl} alt={event.title} className="w-full h-48 object-cover" onError={e => { (e.target as HTMLImageElement).parentElement!.style.display = "none"; }} />
+        <div>
+          <img src={event.imageUrl} alt={event.title} className="w-full h-48 object-cover" onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+        </div>
       )}
       <div className="p-4">
         <div className="flex items-start justify-between gap-3 mb-2">

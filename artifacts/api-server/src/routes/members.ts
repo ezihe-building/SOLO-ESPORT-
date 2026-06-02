@@ -51,11 +51,12 @@ router.get("/members/online", requireAuth, requireActive, async (_req, res): Pro
 });
 
 router.patch("/members/profile", requireAuth, requireActive, async (req: AuthRequest, res): Promise<void> => {
-  const { bio, avatarUrl, whatsappNumber, customTag, tiktokUsername, instagramUsername, discordUsername } = req.body as {
-    bio?: string; avatarUrl?: string; whatsappNumber?: string;
+  const { displayName, bio, avatarUrl, whatsappNumber, customTag, tiktokUsername, instagramUsername, discordUsername } = req.body as {
+    displayName?: string; bio?: string; avatarUrl?: string | null; whatsappNumber?: string;
     customTag?: string; tiktokUsername?: string; instagramUsername?: string; discordUsername?: string;
   };
   const updateData: Record<string, unknown> = {};
+  if (displayName !== undefined && displayName.trim()) updateData.displayName = displayName.trim();
   if (bio !== undefined) updateData.bio = bio;
   if (avatarUrl !== undefined) updateData.avatarUrl = avatarUrl;
   if (whatsappNumber !== undefined) updateData.whatsappNumber = whatsappNumber;
@@ -64,6 +65,7 @@ router.patch("/members/profile", requireAuth, requireActive, async (req: AuthReq
   if (instagramUsername !== undefined) updateData.instagramUsername = instagramUsername;
   if (discordUsername !== undefined) updateData.discordUsername = discordUsername;
   const [updated] = await db.update(membersTable).set(updateData as any).where(eq(membersTable.id, req.userId!)).returning();
+  if (!updated) { res.status(404).json({ error: "Member not found" }); return; }
   res.json(serializeMember(updated));
 });
 

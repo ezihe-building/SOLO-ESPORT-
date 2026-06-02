@@ -24,6 +24,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       queryKey: ["getMe"],
       enabled: !!session?.access_token,
       retry: false,
+      staleTime: 0,
+      refetchOnMount: true,
     }
   });
 
