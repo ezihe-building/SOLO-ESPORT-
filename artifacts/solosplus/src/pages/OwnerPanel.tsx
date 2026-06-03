@@ -8,7 +8,8 @@ import {
   Trophy, Eye, Camera,
 } from "lucide-react";
 
-const API = `${(import.meta as any).env?.VITE_API_URL ?? ""}/api`;
+const API_BASE = (typeof window !== "undefined" && (window as any).ENV_API_URL) ? (window as any).ENV_API_URL : (typeof window !== "undefined" ? window.location.origin : "");
+const API = `${API_BASE}/api`;
 const WA_LINK = "https://chat.whatsapp.com/JGkaBobItjVKhlpbQAvaX8?mode=gi_t";
 const TT_LINK = "https://www.tiktok.com/@solosesportz?_r=1&_t=ZS-96nBUlDDxdl";
 
@@ -231,7 +232,16 @@ export default function OwnerPanel() {
   const handleUnlock=async(e:React.FormEvent)=>{
     e.preventDefault();setPwdError("");
     try{await mf("/mgmt/stats",{},inputPwd);setPwd(inputPwd);setAuthed(true);loadAll(inputPwd);}
-    catch{setPwdError("Incorrect password. Access denied.");}
+    catch(err: any){
+      const msg = err?.message || "";
+      if (msg.includes("Invalid management password") || msg.includes("Unauthorized")) {
+        setPwdError("Incorrect password. Access denied.");
+      } else if (msg.includes("Failed to fetch") || msg.includes("NetworkError") || msg.includes("Network") || msg.includes("Request failed") || msg.includes("404")) {
+        setPwdError(`Server unreachable. API: ${API_BASE}. Check connection and refresh.`);
+      } else {
+        setPwdError(`Error: ${msg}`);
+      }
+    }
   };
 
   if (!authed) return (
