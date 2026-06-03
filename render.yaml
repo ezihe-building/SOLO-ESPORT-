@@ -3,7 +3,7 @@ services:
     name: solosplus-api
     env: node
     plan: free
-    buildCommand: npm install -g pnpm && pnpm install --frozen-lockfile && pnpm --filter @workspace/db run push && pnpm --filter @workspace/api-server run build
+    buildCommand: npm install -g pnpm && pnpm install --frozen-lockfile && pnpm --filter @workspace/db run push && pnpm --filter @workspace/solosplus run build && pnpm --filter @workspace/api-server run build
     startCommand: pnpm --filter @workspace/api-server run start
     healthCheckPath: /api/health
     envVars:
