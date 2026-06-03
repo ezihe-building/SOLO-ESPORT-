@@ -95,7 +95,8 @@ export default function AuthPage() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/auth/signup", {
+      const _apiBase = (import.meta as any).env?.VITE_API_URL ?? "";
+      const res = await fetch(`${_apiBase}/api/auth/signup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
