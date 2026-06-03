@@ -94,9 +94,10 @@ export default function AuthPage() {
     submittingRef.current = true;
     setLoading(true);
 
+    const API_BASE = (typeof window !== "undefined" && (window as any).ENV_API_URL) ? (window as any).ENV_API_URL : (typeof window !== "undefined" ? window.location.origin : "");
+
     try {
-      const _apiBase = (import.meta as any).env?.VITE_API_URL ?? "";
-      const res = await fetch(`${_apiBase}/api/auth/signup`, {
+      const res = await fetch(`${API_BASE}/api/auth/signup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -159,7 +160,8 @@ export default function AuthPage() {
     }
     try {
       const token = data.session?.access_token;
-      const res = await fetch("/api/auth/me", {
+      const API_BASE = (typeof window !== "undefined" && (window as any).ENV_API_URL) ? (window as any).ENV_API_URL : (typeof window !== "undefined" ? window.location.origin : "");
+      const res = await fetch(`${API_BASE}/api/auth/me`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const member = await res.json() as { status?: string };
