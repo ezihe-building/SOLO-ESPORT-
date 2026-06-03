@@ -8,7 +8,7 @@ import {
   Trophy, Eye, Camera,
 } from "lucide-react";
 
-const API = "/api";
+const API = `${(import.meta as any).env?.VITE_API_URL ?? ""}/api`;
 const WA_LINK = "https://chat.whatsapp.com/JGkaBobItjVKhlpbQAvaX8?mode=gi_t";
 const TT_LINK = "https://www.tiktok.com/@solosesportz?_r=1&_t=ZS-96nBUlDDxdl";
 
