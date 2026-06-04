@@ -1,15 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db, scrimsTable, scrimSignupsTable, membersTable, notificationsTable } from "@workspace/db";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { requireAuth, requireActive, requireManagement, type AuthRequest } from "../middlewares/auth";
-import {
-  ListScrimsResponse,
-  GetScrimResponse,
-  CreateScrimBody,
-  UpdateScrimBody,
-  JoinScrimResponse,
-  ListScrimSignupsResponse,
-} from "@workspace/api-zod";
 import { randomUUID } from "crypto";
 
 const router: IRouter = Router();
@@ -38,17 +30,30 @@ router.get("/scrims", requireAuth, requireActive, async (req, res): Promise<void
     return serializeScrim(scrim, signups.length);
   }));
 
-  res.json(ListScrimsResponse.parse(scrimsWithCounts));
+  res.json(scrimsWithCounts);
 });
 
 router.post("/scrims", requireAuth, requireActive, requireManagement, async (req: AuthRequest, res): Promise<void> => {
-  const parsed = CreateScrimBody.safeParse(req.body);
-  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+  const { opponentName, scheduledAt, gameMode, requiredPlayers, notes, imageUrl, linkUrl, linkLabel } = req.body as {
+    opponentName?: string; scheduledAt?: string; gameMode?: string;
+    requiredPlayers?: number; notes?: string; imageUrl?: string | null;
+    linkUrl?: string | null; linkLabel?: string | null;
+  };
+  if (!opponentName || !scheduledAt) {
+    res.status(400).json({ error: "opponentName and scheduledAt are required" });
+    return;
+  }
 
   const [created] = await db.insert(scrimsTable).values({
     id: randomUUID(),
-    ...parsed.data,
-    scheduledAt: new Date(parsed.data.scheduledAt),
+    opponentName,
+    scheduledAt: new Date(scheduledAt),
+    gameMode: gameMode ?? "Battle Royale",
+    requiredPlayers: requiredPlayers ?? 5,
+    notes: notes ?? null,
+    imageUrl: imageUrl ?? null,
+    linkUrl: linkUrl ?? null,
+    linkLabel: linkLabel ?? null,
     status: "upcoming",
     createdBy: req.userId!,
   }).returning();
@@ -68,7 +73,8 @@ router.post("/scrims", requireAuth, requireActive, requireManagement, async (req
     await db.insert(notificationsTable).values(notifications);
   }
 
-  res.status(201).json(GetScrimResponse.parse(serializeScrim(created, 0)));
+  const signups = await db.select().from(scrimSignupsTable).where(eq(scrimSignupsTable.scrimId, created.id));
+  res.status(201).json(serializeScrim(created, signups.length));
 });
 
 router.get("/scrims/:id", requireAuth, requireActive, async (req, res): Promise<void> => {
@@ -76,21 +82,19 @@ router.get("/scrims/:id", requireAuth, requireActive, async (req, res): Promise<
   const [scrim] = await db.select().from(scrimsTable).where(eq(scrimsTable.id, raw));
   if (!scrim) { res.status(404).json({ error: "Scrim not found" }); return; }
   const signups = await db.select().from(scrimSignupsTable).where(eq(scrimSignupsTable.scrimId, raw));
-  res.json(GetScrimResponse.parse(serializeScrim(scrim, signups.length)));
+  res.json(serializeScrim(scrim, signups.length));
 });
 
 router.patch("/scrims/:id", requireAuth, requireActive, requireManagement, async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const parsed = UpdateScrimBody.safeParse(req.body);
-  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
-
-  const updateData: Record<string, unknown> = { ...parsed.data };
-  if (parsed.data.scheduledAt) updateData.scheduledAt = new Date(parsed.data.scheduledAt);
+  const body = req.body as Record<string, unknown>;
+  const updateData: Record<string, unknown> = { ...body };
+  if (body.scheduledAt) updateData.scheduledAt = new Date(body.scheduledAt as string);
 
   const [updated] = await db.update(scrimsTable).set(updateData as any).where(eq(scrimsTable.id, raw)).returning();
   if (!updated) { res.status(404).json({ error: "Scrim not found" }); return; }
   const signups = await db.select().from(scrimSignupsTable).where(eq(scrimSignupsTable.scrimId, raw));
-  res.json(GetScrimResponse.parse(serializeScrim(updated, signups.length)));
+  res.json(serializeScrim(updated, signups.length));
 });
 
 router.delete("/scrims/:id", requireAuth, requireActive, requireManagement, async (req, res): Promise<void> => {
@@ -107,7 +111,7 @@ router.post("/scrims/:id/join", requireAuth, requireActive, async (req: AuthRequ
   const existing = await db.select().from(scrimSignupsTable)
     .where(and(eq(scrimSignupsTable.scrimId, raw), eq(scrimSignupsTable.memberId, userId)));
   if (existing.length > 0) {
-    res.json(JoinScrimResponse.parse(serializeSignup(existing[0])));
+    res.json(serializeSignup(existing[0]));
     return;
   }
 
@@ -119,11 +123,10 @@ router.post("/scrims/:id/join", requireAuth, requireActive, async (req: AuthRequ
     scrimId: raw,
     memberId: userId,
     memberName: member.displayName,
-    memberRole: member.role,
     signupStatus: "pending",
   }).returning();
 
-  res.json(JoinScrimResponse.parse(serializeSignup(signup)));
+  res.json(serializeSignup(signup));
 });
 
 router.post("/scrims/:id/leave", requireAuth, requireActive, async (req: AuthRequest, res): Promise<void> => {
@@ -136,7 +139,7 @@ router.post("/scrims/:id/leave", requireAuth, requireActive, async (req: AuthReq
 router.get("/scrims/:id/signups", requireAuth, requireActive, async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const rows = await db.select().from(scrimSignupsTable).where(eq(scrimSignupsTable.scrimId, raw));
-  res.json(ListScrimSignupsResponse.parse(rows.map(serializeSignup)));
+  res.json(rows.map(serializeSignup));
 });
 
 export default router;
