@@ -2,7 +2,9 @@ import { pgTable, text, boolean, timestamp, pgEnum } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
-export const notificationTypeEnum = pgEnum("notification_type", ["approval", "promotion", "demotion", "announcement", "scrim", "tournament", "leaderboard", "system"]);
+export const notificationTypeEnum = pgEnum("notification_type", [
+  "approval", "rejection", "promotion", "scrim", "announcement", "system",
+]);
 
 export const notificationsTable = pgTable("notifications", {
   id: text("id").primaryKey(),
