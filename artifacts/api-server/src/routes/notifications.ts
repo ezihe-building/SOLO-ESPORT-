@@ -2,10 +2,6 @@ import { Router, type IRouter } from "express";
 import { db, notificationsTable, membersTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { requireAuth, requireActive, requireManagement, type AuthRequest } from "../middlewares/auth";
-import {
-  ListNotificationsResponse,
-  MarkNotificationReadResponse,
-} from "@workspace/api-zod";
 import { randomUUID } from "crypto";
 
 const router: IRouter = Router();
@@ -20,7 +16,7 @@ router.get("/notifications", requireAuth, requireActive, async (req: AuthRequest
     .where(eq(notificationsTable.userId, req.userId!));
   if (unreadOnly) rows = rows.filter(n => !n.read);
   rows.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-  res.json(ListNotificationsResponse.parse(rows.map(serialize)));
+  res.json(rows.map(serialize));
 });
 
 router.post("/notifications/:id/read", requireAuth, requireActive, async (req: AuthRequest, res): Promise<void> => {
@@ -30,7 +26,7 @@ router.post("/notifications/:id/read", requireAuth, requireActive, async (req: A
     .where(and(eq(notificationsTable.id, raw), eq(notificationsTable.userId, req.userId!)))
     .returning();
   if (!updated) { res.status(404).json({ error: "Not found" }); return; }
-  res.json(MarkNotificationReadResponse.parse(serialize(updated)));
+  res.json(serialize(updated));
 });
 
 router.post("/notifications/read-all", requireAuth, requireActive, async (req: AuthRequest, res): Promise<void> => {
@@ -44,31 +40,11 @@ router.post("/notifications/broadcast", requireAuth, requireActive, requireManag
   const { title, message, targetRole } = req.body as { title: string; message: string; targetRole?: string | null };
   if (!title || !message) { res.status(400).json({ error: "title and message are required" }); return; }
 
-  let members = await db.select({ id: membersTable.id }).from(membersTable)
-    .where(eq(membersTable.status, "active"));
-  if (targetRole) members = members.filter(() => true);
+  const allActive = await db.select({ id: membersTable.id, role: membersTable.role })
+    .from(membersTable).where(eq(membersTable.status, "active"));
+  const filtered = targetRole ? allActive.filter(m => m.role === targetRole) : allActive;
 
-  if (targetRole) {
-    const allActive = await db.select({ id: membersTable.id, role: membersTable.role })
-      .from(membersTable).where(eq(membersTable.status, "active"));
-    const filtered = allActive.filter(m => m.role === targetRole);
-    const notifications = filtered.map(m => ({
-      id: randomUUID(),
-      userId: m.id,
-      type: "system" as const,
-      title,
-      message,
-      read: false,
-      link: null,
-    }));
-    if (notifications.length > 0) await db.insert(notificationsTable).values(notifications);
-    res.json({ sent: notifications.length });
-    return;
-  }
-
-  const allActive = await db.select({ id: membersTable.id }).from(membersTable)
-    .where(eq(membersTable.status, "active"));
-  const notifications = allActive.map(m => ({
+  const notifications = filtered.map(m => ({
     id: randomUUID(),
     userId: m.id,
     type: "system" as const,
