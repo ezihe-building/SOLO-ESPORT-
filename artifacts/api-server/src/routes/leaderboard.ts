@@ -2,7 +2,6 @@ import { Router, type IRouter } from "express";
 import { db, membersTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 import { requireAuth, requireActive } from "../middlewares/auth";
-import { GetLeaderboardResponse, GetTopPlayersResponse } from "@workspace/api-zod";
 
 const router: IRouter = Router();
 
@@ -39,7 +38,7 @@ router.get("/leaderboard", requireAuth, requireActive, async (req, res): Promise
     .orderBy(desc(sortCol))
     .limit(limit);
 
-  res.json(GetLeaderboardResponse.parse(rows.map((m, i) => toEntry(m, i + 1))));
+  res.json(rows.map((m, i) => toEntry(m, i + 1)));
 });
 
 router.get("/leaderboard/top", requireAuth, requireActive, async (_req, res): Promise<void> => {
@@ -51,18 +50,25 @@ router.get("/leaderboard/top", requireAuth, requireActive, async (_req, res): Pr
   const byActivity = [...active].sort((a, b) => b.activityScore - a.activityScore)[0];
   const byScrimWins = [...active].sort((a, b) => b.scrimWins - a.scrimWins)[0];
 
-  const fallback = active[0] ?? {
-    id: "none", displayName: "N/A", role: "NEW_MEMBER", avatarUrl: null,
-    clanPoints: 0, kdRatio: 0, mvpCount: 0, activityScore: 0, scrimWins: 0,
+  const fallback = active[0] as typeof membersTable.$inferSelect | undefined;
+
+  const empty = {
+    id: "none", displayName: "N/A", role: "NEW_MEMBER" as const,
+    avatarUrl: null, clanPoints: 0, kdRatio: 0, mvpCount: 0,
+    activityScore: 0, scrimWins: 0, email: "", codmUsername: "",
+    status: "active" as const, whatsappNumber: null, tiktokUsername: null,
+    instagramUsername: null, discordUsername: null, customTag: null, bio: null,
+    kills: 0, deaths: 0, totalWins: 0, totalLosses: 0, tournamentWins: 0,
+    isOnline: false, lastSeen: null, achievements: [], createdAt: new Date(),
   };
 
-  res.json(GetTopPlayersResponse.parse({
-    byPoints: toEntry(byPoints ?? fallback, 1),
-    byKd: toEntry(byKd ?? fallback, 1),
-    byMvp: toEntry(byMvp ?? fallback, 1),
-    byActivity: toEntry(byActivity ?? fallback, 1),
-    byScrimWins: toEntry(byScrimWins ?? fallback, 1),
-  }));
+  res.json({
+    byPoints: toEntry(byPoints ?? fallback ?? empty, 1),
+    byKd: toEntry(byKd ?? fallback ?? empty, 1),
+    byMvp: toEntry(byMvp ?? fallback ?? empty, 1),
+    byActivity: toEntry(byActivity ?? fallback ?? empty, 1),
+    byScrimWins: toEntry(byScrimWins ?? fallback ?? empty, 1),
+  });
 });
 
 export default router;
