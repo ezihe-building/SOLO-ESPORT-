@@ -1,30 +1,30 @@
 import { drizzle } from "drizzle-orm/node-postgres";
-  import pg from "pg";
-  import * as schema from "./schema";
+import pg from "pg";
+import * as schema from "./schema";
 
-  const { Pool } = pg;
+const { Pool } = pg;
 
-  const rawUrl =
-    process.env.DATABASE_URL ??
-    "postgresql://postgres:%40Ezihe__13579@db.dzpmxcjfjxjxjvpsokcf.supabase.co:5432/postgres";
+const SUPABASE_FALLBACK =
+  "postgresql://postgres:%40Ezihe__13579@db.dzpmxcjfjxjxjvpsokcf.supabase.co:5432/postgres";
 
-  // Strip sslmode from connection string — set SSL options directly on Pool
-  // so pg-connection-string parsing cannot conflict with them
-  const connectionString = rawUrl.replace(/[?&]sslmode=[^&]*/g, "").replace(/\?$/, "");
+const rawUrl = process.env.DATABASE_URL ?? SUPABASE_FALLBACK;
 
-  export const pool = new Pool({
-    connectionString,
-    ssl: { rejectUnauthorized: false },
-    max: 10,
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 10000,
-  });
+// Strip ?sslmode=... from the URL — we set ssl directly on the Pool config
+// so pg-connection-string parsing never conflicts with our ssl object.
+const connectionString = rawUrl.replace(/[?&]sslmode=[^&]*/g, "").replace(/\?$/, "");
 
-  pool.on("error", (err) => {
-    console.error("Unexpected DB pool error:", err.message);
-  });
+export const pool = new Pool({
+  connectionString,
+  ssl: { rejectUnauthorized: false },
+  max: 10,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000,
+});
 
-  export const db = drizzle(pool, { schema });
+pool.on("error", (err) => {
+  console.error("[DB pool error]", err.message);
+});
 
-  export * from "./schema";
-  
+export const db = drizzle(pool, { schema });
+
+export * from "./schema";
