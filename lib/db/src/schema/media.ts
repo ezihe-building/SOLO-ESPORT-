@@ -3,7 +3,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
 export const mediaCategoryEnum = pgEnum("media_category", [
-  "scrim", "tournament", "event", "achievement", "clan_life"
+  "tournament", "scrim", "clan_life", "achievement", "highlight",
 ]);
 
 export const mediaGalleryTable = pgTable("media_gallery", {
@@ -18,4 +18,4 @@ export const mediaGalleryTable = pgTable("media_gallery", {
 
 export const insertMediaSchema = createInsertSchema(mediaGalleryTable).omit({ createdAt: true });
 export type InsertMedia = z.infer<typeof insertMediaSchema>;
-export type MediaItem = typeof mediaGalleryTable.$inferSelect;
+export type Media = typeof mediaGalleryTable.$inferSelect;
