@@ -1,8 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, membersTable, scrimsTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
 import { requireAuth, requireActive } from "../middlewares/auth";
-import { GetClanStatsResponse } from "@workspace/api-zod";
 
 const router: IRouter = Router();
 
@@ -25,7 +23,7 @@ router.get("/stats/clan", requireAuth, requireActive, async (_req, res): Promise
     ? (scrimWins / completedScrims.length) * 100
     : 0;
 
-  res.json(GetClanStatsResponse.parse({
+  res.json({
     totalMembers: members.length,
     activeMembers: active.length,
     pendingMembers: pending.length,
@@ -41,7 +39,7 @@ router.get("/stats/clan", requireAuth, requireActive, async (_req, res): Promise
     totalClanPoints,
     totalMvps,
     membersOnline: active.filter(m => m.isOnline).length,
-  }));
+  });
 });
 
 export default router;
