@@ -2,7 +2,6 @@ import { Router, type IRouter } from "express";
 import { db, membersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { requireAuth, type AuthRequest } from "../middlewares/auth";
-import { GetMeResponse } from "@workspace/api-zod";
 import { supabaseAdmin } from "../lib/supabase";
 import { logger } from "../lib/logger";
 
@@ -36,11 +35,11 @@ router.get("/auth/me", requireAuth, async (req: AuthRequest, res): Promise<void>
     member = created;
   }
 
-  res.json(GetMeResponse.parse({
+  res.json({
     ...member,
     lastSeen: member.lastSeen?.toISOString() ?? null,
     createdAt: member.createdAt.toISOString(),
-  }));
+  });
 });
 
 // Signup endpoint — creates Supabase user (no email confirmation required)
