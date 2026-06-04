@@ -2,11 +2,6 @@ import { Router, type IRouter } from "express";
 import { db, chatGroupsTable, chatMessagesTable, membersTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 import { requireAuth, requireActive, type AuthRequest } from "../middlewares/auth";
-import {
-  ListChatGroupsResponse,
-  GetChatMessagesResponse,
-  SendMessageBody,
-} from "@workspace/api-zod";
 import { randomUUID } from "crypto";
 
 const router: IRouter = Router();
@@ -36,13 +31,14 @@ router.get("/chat/groups", requireAuth, requireActive, async (req: AuthRequest, 
     const lastMsg = messages[0];
     return {
       ...g,
+      createdAt: g.createdAt.toISOString(),
       lastMessage: lastMsg?.content ?? null,
       lastMessageAt: lastMsg?.createdAt.toISOString() ?? null,
       unreadCount: 0,
     };
   }));
 
-  res.json(ListChatGroupsResponse.parse(groupsWithMeta));
+  res.json(groupsWithMeta);
 });
 
 router.get("/chat/groups/:groupId/messages", requireAuth, requireActive, async (req, res): Promise<void> => {
@@ -52,17 +48,17 @@ router.get("/chat/groups/:groupId/messages", requireAuth, requireActive, async (
     .orderBy(chatMessagesTable.createdAt)
     .limit(100);
 
-  res.json(GetChatMessagesResponse.parse(rows.map(m => ({
+  res.json(rows.map(m => ({
     ...m,
     avatarUrl: m.avatarUrl ?? null,
     createdAt: m.createdAt.toISOString(),
-  }))));
+  })));
 });
 
 router.post("/chat/groups/:groupId/messages", requireAuth, requireActive, async (req: AuthRequest, res): Promise<void> => {
   const groupId = Array.isArray(req.params.groupId) ? req.params.groupId[0] : req.params.groupId;
-  const parsed = SendMessageBody.safeParse(req.body);
-  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+  const { content } = req.body as { content?: string };
+  if (!content?.trim()) { res.status(400).json({ error: "content is required" }); return; }
 
   const [member] = await db.select().from(membersTable).where(eq(membersTable.id, req.userId!));
   if (!member) { res.status(404).json({ error: "Member not found" }); return; }
@@ -74,7 +70,7 @@ router.post("/chat/groups/:groupId/messages", requireAuth, requireActive, async 
     authorName: member.displayName,
     authorRole: member.role,
     avatarUrl: member.avatarUrl ?? null,
-    content: parsed.data.content,
+    content: content.trim(),
   }).returning();
 
   res.status(201).json({
