@@ -5,6 +5,7 @@ import { z } from "zod/v4";
 export const chatGroupsTable = pgTable("chat_groups", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
+  type: text("type").notNull().default("GENERAL"),
   description: text("description"),
   createdBy: text("created_by").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -13,9 +14,10 @@ export const chatGroupsTable = pgTable("chat_groups", {
 export const chatMessagesTable = pgTable("chat_messages", {
   id: text("id").primaryKey(),
   groupId: text("group_id").notNull().references(() => chatGroupsTable.id, { onDelete: "cascade" }),
-  senderId: text("sender_id").notNull(),
-  senderName: text("sender_name").notNull(),
-  senderRole: text("sender_role").notNull(),
+  authorId: text("author_id").notNull(),
+  authorName: text("author_name").notNull(),
+  authorRole: text("author_role").notNull(),
+  avatarUrl: text("avatar_url"),
   content: text("content").notNull(),
   edited: boolean("edited").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
