@@ -2,22 +2,6 @@ import { Router, type IRouter } from "express";
 import { db, membersTable, notificationsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { requireAuth, requireActive, requireManagement, type AuthRequest } from "../middlewares/auth";
-import {
-  ListMembersResponse,
-  GetMemberResponse,
-  UpdateMemberBody,
-  UpdateMemberResponse,
-  PromoteMemberBody,
-  PromoteMemberResponse,
-  DemoteMemberBody,
-  DemoteMemberResponse,
-  ApproveMemberResponse,
-  RejectMemberResponse,
-  ListPendingMembersResponse,
-  ListOnlineMembersResponse,
-  UpdateMyProfileBody,
-  UpdateMyProfileResponse,
-} from "@workspace/api-zod";
 import { randomUUID } from "crypto";
 
 const router: IRouter = Router();
@@ -35,19 +19,19 @@ router.get("/members", requireAuth, requireActive, async (req: AuthRequest, res)
   let rows = await db.select().from(membersTable);
   if (status) rows = rows.filter(m => m.status === status);
   if (role) rows = rows.filter(m => m.role === role);
-  res.json(ListMembersResponse.parse(rows.map(serializeMember)));
+  res.json(rows.map(serializeMember));
 });
 
 router.get("/members/pending", requireAuth, requireActive, requireManagement, async (_req, res): Promise<void> => {
   const rows = await db.select().from(membersTable).where(eq(membersTable.status, "pending"));
-  res.json(ListPendingMembersResponse.parse(rows.map(serializeMember)));
+  res.json(rows.map(serializeMember));
 });
 
 router.get("/members/online", requireAuth, requireActive, async (_req, res): Promise<void> => {
   const rows = await db.select().from(membersTable).where(
     and(eq(membersTable.isOnline, true), eq(membersTable.status, "active"))
   );
-  res.json(ListOnlineMembersResponse.parse(rows.map(serializeMember)));
+  res.json(rows.map(serializeMember));
 });
 
 router.patch("/members/profile", requireAuth, requireActive, async (req: AuthRequest, res): Promise<void> => {
@@ -73,16 +57,14 @@ router.get("/members/:id", requireAuth, requireActive, async (req: AuthRequest, 
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const [member] = await db.select().from(membersTable).where(eq(membersTable.id, raw));
   if (!member) { res.status(404).json({ error: "Member not found" }); return; }
-  res.json(GetMemberResponse.parse(serializeMember(member)));
+  res.json(serializeMember(member));
 });
 
 router.patch("/members/:id", requireAuth, requireActive, requireManagement, async (req: AuthRequest, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const parsed = UpdateMemberBody.safeParse(req.body);
-  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
-  const [updated] = await db.update(membersTable).set(parsed.data).where(eq(membersTable.id, raw)).returning();
+  const [updated] = await db.update(membersTable).set(req.body as any).where(eq(membersTable.id, raw)).returning();
   if (!updated) { res.status(404).json({ error: "Member not found" }); return; }
-  res.json(UpdateMemberResponse.parse(serializeMember(updated)));
+  res.json(serializeMember(updated));
 });
 
 router.delete("/members/:id", requireAuth, requireActive, requireManagement, async (req: AuthRequest, res): Promise<void> => {
@@ -101,14 +83,14 @@ router.post("/members/:id/approve", requireAuth, requireActive, requireManagemen
     message: "Welcome to SOLOS+ ESPORTZ! Your application has been approved.",
     read: false, link: "/welcome",
   });
-  res.json(ApproveMemberResponse.parse(serializeMember(updated)));
+  res.json(serializeMember(updated));
 });
 
 router.post("/members/:id/reject", requireAuth, requireActive, requireManagement, async (req: AuthRequest, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const [updated] = await db.update(membersTable).set({ status: "rejected" }).where(eq(membersTable.id, raw)).returning();
   if (!updated) { res.status(404).json({ error: "Member not found" }); return; }
-  res.json(RejectMemberResponse.parse(serializeMember(updated)));
+  res.json(serializeMember(updated));
 });
 
 router.post("/members/:id/suspend", requireAuth, requireActive, requireManagement, async (req: AuthRequest, res): Promise<void> => {
@@ -180,32 +162,32 @@ router.post("/members/:id/badges", requireAuth, requireActive, requireManagement
 
 router.post("/members/:id/promote", requireAuth, requireActive, requireManagement, async (req: AuthRequest, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const parsed = PromoteMemberBody.safeParse(req.body);
-  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
-  const [updated] = await db.update(membersTable).set({ role: parsed.data.role as any }).where(eq(membersTable.id, raw)).returning();
+  const { role } = req.body as { role?: string };
+  if (!role) { res.status(400).json({ error: "role is required" }); return; }
+  const [updated] = await db.update(membersTable).set({ role: role as any }).where(eq(membersTable.id, raw)).returning();
   if (!updated) { res.status(404).json({ error: "Member not found" }); return; }
   await db.insert(notificationsTable).values({
     id: randomUUID(), userId: raw, type: "promotion",
     title: "Congratulations! You've been promoted!",
-    message: `You have been promoted to ${parsed.data.role} in SOLOS+ ESPORTZ.`,
+    message: `You have been promoted to ${role} in SOLOS+ ESPORTZ.`,
     read: false, link: "/profile",
   });
-  res.json(PromoteMemberResponse.parse(serializeMember(updated)));
+  res.json(serializeMember(updated));
 });
 
 router.post("/members/:id/demote", requireAuth, requireActive, requireManagement, async (req: AuthRequest, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const parsed = DemoteMemberBody.safeParse(req.body);
-  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
-  const [updated] = await db.update(membersTable).set({ role: parsed.data.role as any }).where(eq(membersTable.id, raw)).returning();
+  const { role } = req.body as { role?: string };
+  if (!role) { res.status(400).json({ error: "role is required" }); return; }
+  const [updated] = await db.update(membersTable).set({ role: role as any }).where(eq(membersTable.id, raw)).returning();
   if (!updated) { res.status(404).json({ error: "Member not found" }); return; }
   await db.insert(notificationsTable).values({
-    id: randomUUID(), userId: raw, type: "demotion",
+    id: randomUUID(), userId: raw, type: "system",
     title: "Role Updated",
-    message: `Your role has been changed to ${parsed.data.role}.`,
+    message: `Your role has been changed to ${role}.`,
     read: false, link: "/profile",
   });
-  res.json(DemoteMemberResponse.parse(serializeMember(updated)));
+  res.json(serializeMember(updated));
 });
 
 export default router;
