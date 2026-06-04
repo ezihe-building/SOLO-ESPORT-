@@ -3,7 +3,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
 export const feedPostTypeEnum = pgEnum("feed_post_type", [
-  "news", "tournament", "achievement", "screenshot", "promotion", "highlight", "scrim_result"
+  "achievement", "scrim_result", "news", "highlight", "announcement",
 ]);
 
 export const feedPostsTable = pgTable("feed_posts", {
@@ -15,7 +15,6 @@ export const feedPostsTable = pgTable("feed_posts", {
   imageUrl: text("image_url"),
   postType: feedPostTypeEnum("post_type").notNull().default("news"),
   likeCount: integer("like_count").notNull().default(0),
-  likedBy: text("liked_by").array().notNull().default([]),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
