@@ -3,6 +3,7 @@ import { supabaseAdmin } from "../lib/supabase";
 
 export interface AuthRequest extends Request {
   userId?: string;
+  memberRole?: string;
 }
 
 export async function requireAuth(
@@ -42,7 +43,7 @@ export async function requireActive(
     const { db, membersTable } = await import("@workspace/db");
     const { eq } = await import("drizzle-orm");
     const [member] = await db
-      .select({ status: membersTable.status })
+      .select({ status: membersTable.status, role: membersTable.role })
       .from(membersTable)
       .where(eq(membersTable.id, req.userId));
     if (!member) {
@@ -53,6 +54,7 @@ export async function requireActive(
       res.status(403).json({ error: `Account is ${member.status}` });
       return;
     }
+    req.memberRole = member.role;
     next();
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
