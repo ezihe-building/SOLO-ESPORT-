@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, eventsTable } from "@workspace/db";
+import { db, eventsTable, membersTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 import { requireAuth, requireActive, requireManagement, type AuthRequest } from "../middlewares/auth";
 import { randomUUID } from "crypto";
@@ -27,7 +27,7 @@ router.post("/events", requireAuth, requireActive, requireManagement, async (req
     res.status(400).json({ error: "title, description and eventDate required" });
     return;
   }
-  const memberRows = await db.query?.members?.findFirst?.({ where: (m: any, { eq: eqFn }: any) => eqFn(m.id, req.userId!) }) ?? null;
+  const [memberRow] = await db.select({ displayName: membersTable.displayName }).from(membersTable).where(eq(membersTable.id, req.userId!));
   const [created] = await db.insert(eventsTable).values({
     id: randomUUID(),
     title,
@@ -35,7 +35,7 @@ router.post("/events", requireAuth, requireActive, requireManagement, async (req
     imageUrl: imageUrl ?? null,
     eventDate: new Date(eventDate),
     createdBy: req.userId!,
-    createdByName: (req as any).memberName ?? "Management",
+    createdByName: memberRow?.displayName ?? "Management",
   }).returning();
   res.status(201).json(serializeEvent(created));
 });
