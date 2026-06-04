@@ -1,14 +1,18 @@
 import { defineConfig } from "drizzle-kit";
-import path from "path";
+  import path from "path";
 
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL, ensure the database is provisioned");
-}
+  const rawUrl =
+    process.env.DATABASE_URL ??
+    "postgresql://postgres:%40Ezihe__13579@db.dzpmxcjfjxjxjvpsokcf.supabase.co:5432/postgres";
 
-export default defineConfig({
-  schema: path.join(__dirname, "./src/schema/index.ts"),
-  dialect: "postgresql",
-  dbCredentials: {
-    url: process.env.DATABASE_URL,
-  },
-});
+  const url = rawUrl.replace(/[?&]sslmode=[^&]*/g, "").replace(/\?$/, "");
+
+  export default defineConfig({
+    schema: path.join(__dirname, "./src/schema/index.ts"),
+    dialect: "postgresql",
+    dbCredentials: {
+      url,
+      ssl: true,
+    },
+  });
+  
